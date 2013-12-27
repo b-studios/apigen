@@ -80,8 +80,6 @@ object AccessorTest {
   }
   // Does not work:
   // locally {
-  //   // at macro expansion time, I don't have information whether T can be nullable
-  //   // or not (except there is an upper bound)
   //   implicit class PWrapper[T](@accessors self: P[_]) {}
   //   val p = new PWrapper[Int](null)
   //   val t: Int = p.t
