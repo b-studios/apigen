@@ -79,11 +79,14 @@ object AccessorTest {
     def setT(t: T): Unit
   }
   // Does not work:
-  // locally {
-  //   implicit class PWrapper[T](@accessors self: P[_]) {}
-  //   val p = new PWrapper[Int](null)
-  //   val t: Int = p.t
-  // }
+  locally {
+    implicit class PWrapper[T](@accessors self: P[T]) {}
+
+    // maybe generate ...(implicit ev: Null <:< T) to detect value types
+    // see source of implementation of `Property`
+    val p = new PWrapper[Int](null)
+    val t: Int = p.t
+  }
 
   
   // Does not work:  

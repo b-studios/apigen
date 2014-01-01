@@ -16,6 +16,9 @@ trait Utils[C <: Context] {
   /**
    * Converts a given type tree `t` into the type it represents.
    *
+   * If the given type tree is an applied type like `T[A]` the type of
+   * the type constructor will be returned.
+   *
    * Can abort the macro execution if the tree cannot be typechecked. Most of the times this is
    * due to a misplaced import statement.
    *
@@ -27,19 +30,27 @@ trait Utils[C <: Context] {
     if (tpt.tpe != null)
       return tpt.tpe
 
-    try {
-      c.typeCheck(q"(null.asInstanceOf[$tpt])").tpe
-    } catch {
-      case e:scala.reflect.macros.TypecheckException => 
-        val msg = s"""Could not find type for: $tpt
-                     |Make sure the given type is in scope.
-                     |Import statements inside of a class definition might not work.
-                     |Try moving them out of the class-definition and prevent to use aliases.
-                     |Original exception: 
-                     |$e"""
-        c.abort(c.enclosingPosition, msg.stripMargin)
+    val tpe = (tpt match {
+      case ExistentialTypeTree(base,_) => base
+      case _ => tpt
+    }) match {
+      case id: Ident => c.typeCheck(q"(null.asInstanceOf[$tpt])", silent = true).tpe
+      case AppliedTypeTree(base, args) => {
+        val wildcards = args.map(a => WildcardType)
+        c.typeCheck(q"null.asInstanceOf[$base [..$wildcards]]").tpe.typeConstructor
+      }
     }
+
+    if (tpe == NoType) {
+      val msg = s"""Could not find type for: $tpt
+                   |Make sure the given type is in scope.
+                   |Import statements inside of a class definition might not work.
+                   |Try moving them out of the class-definition and prevent to use aliases."""
+      c.abort(c.enclosingPosition, msg.stripMargin)
+    }
+    tpe
   }
+
   private[annotations] def assembleResult(ts: Tree*): c.Expr[Any] = c.Expr(Block(ts.toList, Literal(Constant(()))))
 
   private[annotations] implicit class MethodSymbolWrapper(self: MethodSymbol) {
