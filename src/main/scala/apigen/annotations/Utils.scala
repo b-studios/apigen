@@ -55,6 +55,8 @@ trait Utils[C <: Context] {
 
   private[annotations] implicit class MethodSymbolWrapper(self: MethodSymbol) {
 
+    import definitions.{ RepeatedParamClass, JavaRepeatedParamClass }
+
     def isAbstract: Boolean = self
       .asInstanceOf[scala.reflect.internal.Symbols#Symbol]
       .hasFlag(scala.reflect.internal.Flags.DEFERRED)
@@ -88,17 +90,14 @@ trait Utils[C <: Context] {
     def hasAccessorName: Boolean = 
       "^(is|get|set)".r.findPrefixOf(self.name.toString).isDefined
 
-    // is this the best way to determine varargs? highly fragile through string check
-    // baseTypeSeq.toList(1) == Array[T]
-    // baseTypeSeq.toList(1).typeArguments.head == T
-    // before it does not have type params
-    //
-    // Probably best to first add new annotations varArgSetter and nonNullableVarArgSetter
-    // then elaborate on arguments to annotations to minimize footprint of these names
+    /**
+     * @see scala/reflect/internal/Definitions.scala
+     * @see scala/reflect/api/StandardDefinitions.scala
+     */
     def hasVarArgs: Boolean = self.paramss match {
       case List(List(arg)) => {
-          val sig = arg.typeSignature.toString
-          sig.startsWith("<repeated...>") || sig.endsWith("*")
+        val ts = arg.typeSignature.typeSymbol
+        ts == RepeatedParamClass || ts == JavaRepeatedParamClass
       }
       case _ => false
     }
